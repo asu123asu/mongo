@@ -1,5 +1,12 @@
 [
-  { "name": "Alice", "role": "Developer" },
-  { "name": "Bob", "role": "Designer" },
-  { "name": "Charlie", "role": "Manager" }
+  {
+    "name": "swalih",
+    "email": "swa@gmail.com",
+    "password": "1234"
+  },
+  {
+    "name": "hridik",
+    "email": "hrrrr@gmail.com",
+    "password": "1111"
+  }
 ]

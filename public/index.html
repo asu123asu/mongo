@@ -1,31 +1,178 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
-  <title>My Express App</title>
-</head>
-<body>
-  <h1>Team Members</h1>
-  
-  <!-- This is where our API data will appear -->
-  <ul id="user-list">Loading data...</ul>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>User Registration & Login</title>
 
-  <script>
-    // 1. Call the API we built in server.js
-    fetch('/api/users')
-      .then(response => response.json()) // 2. Convert the response to JSON
-      .then(users => {
-        
-        const listElement = document.getElementById('user-list');
-        listElement.innerHTML = ''; // Clear the "Loading data..." text
-        
-        // 3. Loop through the data and display it on the website
-        users.forEach(user => {
-          const listItem = document.createElement('li');
-          listItem.innerHTML = `<strong>${user.name}</strong> - ${user.role}`;
-          listElement.appendChild(listItem);
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            background: #f2f2f2;
+            display: flex;
+            justify-content: center;
+            gap: 30px;
+            padding: 50px;
+        }
+
+        .container {
+            background: white;
+            padding: 25px;
+            width: 300px;
+            border-radius: 10px;
+            box-shadow: 0 0 10px #ccc;
+        }
+
+        h2 {
+            text-align: center;
+        }
+
+        input {
+            width: 100%;
+            padding: 10px;
+            margin: 8px 0;
+            box-sizing: border-box;
+        }
+
+        button {
+            width: 100%;
+            padding: 10px;
+            background: #007bff;
+            color: white;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+        }
+
+        button:hover {
+            background: #0056b3;
+        }
+
+        .message {
+            margin-top: 15px;
+            text-align: center;
+        }
+    </style>
+</head>
+
+<body>
+
+    <div class="container">
+        <h2>Sign Up</h2>
+
+        <form id="signupForm">
+            <input
+                type="text"
+                id="signupName"
+                placeholder="Name"
+                required
+            >
+
+            <input
+                type="email"
+                id="signupEmail"
+                placeholder="Email"
+                required
+            >
+
+            <input
+                type="password"
+                id="signupPassword"
+                placeholder="Password"
+                required
+            >
+
+            <button type="submit">Sign Up</button>
+        </form>
+
+        <div id="signupMessage" class="message"></div>
+    </div>
+
+
+    <div class="container">
+        <h2>Login</h2>
+
+        <form id="loginForm">
+            <input
+                type="email"
+                id="loginEmail"
+                placeholder="Email"
+                required
+            >
+
+            <input
+                type="password"
+                id="loginPassword"
+                placeholder="Password"
+                required
+            >
+
+            <button type="submit">Log In</button>
+        </form>
+
+        <div id="loginMessage" class="message"></div>
+    </div>
+
+
+    <script>
+        // Sign Up
+        document.getElementById("signupForm").addEventListener("submit", async (event) => {
+            event.preventDefault();
+
+            const name = document.getElementById("signupName").value;
+            const email = document.getElementById("signupEmail").value;
+            const password = document.getElementById("signupPassword").value;
+
+            const response = await fetch("/signup", {
+                method: "POST",
+                headers: {
+                    "Content-Type": "application/json"
+                },
+                body: JSON.stringify({
+                    name,
+                    email,
+                    password
+                })
+            });
+
+            const data = await response.json();
+
+            document.getElementById("signupMessage").textContent = data.message;
+
+            if (data.success) {
+                document.getElementById("signupForm").reset();
+            }
         });
 
-      });
-  </script>
+
+        // Login
+        document.getElementById("loginForm").addEventListener("submit", async (event) => {
+            event.preventDefault();
+
+            const email = document.getElementById("loginEmail").value;
+            const password = document.getElementById("loginPassword").value;
+
+            const response = await fetch("/login", {
+                method: "POST",
+                headers: {
+                    "Content-Type": "application/json"
+                },
+                body: JSON.stringify({
+                    email,
+                    password
+                })
+            });
+
+            const data = await response.json();
+
+            document.getElementById("loginMessage").textContent = data.message;
+
+            if (data.success) {
+                localStorage.setItem("userName", data.name);
+                window.location.href = "/dashboard.html";
+            }
+        });
+    </script>
+
 </body>
 </html>
