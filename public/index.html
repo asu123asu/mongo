@@ -1,0 +1,31 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>My Express App</title>
+</head>
+<body>
+  <h1>Team Members</h1>
+  
+  <!-- This is where our API data will appear -->
+  <ul id="user-list">Loading data...</ul>
+
+  <script>
+    // 1. Call the API we built in server.js
+    fetch('/api/users')
+      .then(response => response.json()) // 2. Convert the response to JSON
+      .then(users => {
+        
+        const listElement = document.getElementById('user-list');
+        listElement.innerHTML = ''; // Clear the "Loading data..." text
+        
+        // 3. Loop through the data and display it on the website
+        users.forEach(user => {
+          const listItem = document.createElement('li');
+          listItem.innerHTML = `<strong>${user.name}</strong> - ${user.role}`;
+          listElement.appendChild(listItem);
+        });
+
+      });
+  </script>
+</body>
+</html>

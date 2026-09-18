@@ -1,0 +1,12 @@
+{
+  "name": "simple-express-api",
+  "version": "1.0.0",
+  "description": "A simple Express server reading from a JSON file",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js"
+  },
+  "dependencies": {
+    "express": "^4.21.0"
+  }
+}
