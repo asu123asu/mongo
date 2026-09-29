@@ -2,12 +2,15 @@ const express = require("express");
 const fs = require("fs");
 const path = require("path");
 const EventEmitter = require("events");
+const { MongoClient } = require("mongodb");
 
 const app = express();
 const PORT = 3000;
 
-// File paths
-const usersFile = path.join(__dirname, "users.json");
+// MongoDB connection
+const client = new MongoClient("mongodb://localhost:27017/");
+
+// File path for audit log
 const auditFile = path.join(__dirname, "audit.log");
 
 // Middleware
@@ -17,24 +20,10 @@ app.use(express.static(path.join(__dirname, "public")));
 // Custom EventEmitter
 const userEvents = new EventEmitter();
 
-// Read users from users.json
-function readUsers() {
-    try {
-        const data = fs.readFileSync(usersFile, "utf8");
-        return JSON.parse(data);
-    } catch (error) {
-        return [];
-    }
-}
-
-// Save users to users.json
-function saveUsers(users) {
-    fs.writeFileSync(usersFile, JSON.stringify(users, null, 2));
-}
-
 // Write activity to audit.log
 function logActivity(message) {
     const timestamp = new Date().toISOString();
+
     fs.appendFileSync(
         auditFile,
         `[${timestamp}] ${message}\n`
@@ -51,83 +40,131 @@ userEvents.on("login", (user) => {
     logActivity(`User logged in: ${user.email}`);
 });
 
-// Sign Up
-app.post("/signup", (req, res) => {
-    const { name, email, password } = req.body;
-
-    if (!name || !email || !password) {
-        return res.status(400).json({
-            success: false,
-            message: "All fields are required."
-        });
-    }
-
-    const users = readUsers();
-
-    const existingUser = users.find(
-        user => user.email.toLowerCase() === email.toLowerCase()
-    );
-
-    if (existingUser) {
-        return res.status(409).json({
-            success: false,
-            message: "Email already registered."
-        });
-    }
-
-    const newUser = {
-        name,
-        email,
-        password
-    };
-
-    users.push(newUser);
-    saveUsers(users);
-
-    userEvents.emit("signup", newUser);
-
-    res.status(201).json({
-        success: true,
-        message: "Registration successful!"
-    });
-});
-
-// Login
-app.post("/login", (req, res) => {
-    const { email, password } = req.body;
-
-    if (!email || !password) {
-        return res.status(400).json({
-            success: false,
-            message: "Email and password are required."
-        });
-    }
-
-    const users = readUsers();
-
-    const user = users.find(
-        user =>
-            user.email.toLowerCase() === email.toLowerCase() &&
-            user.password === password
-    );
-
-    if (!user) {
-        return res.status(401).json({
-            success: false,
-            message: "Invalid email or password."
-        });
-    }
-
-    userEvents.emit("login", user);
-
-    res.json({
-        success: true,
-        message: "Login successful!",
-        name: user.name
-    });
-});
-
 // Start server
-app.listen(PORT, () => {
-    console.log(`Server running at http://localhost:${PORT}`);
-});
+async function startServer() {
+    try {
+        await client.connect();
+
+        console.log("MongoDB connected successfully!");
+
+        const db = client.db("emea");
+        const users = db.collection("users");
+
+        // Ensure email addresses are unique
+        await users.createIndex(
+            { emailLower: 1 },
+            { unique: true }
+        );
+
+        // Sign Up
+        app.post("/signup", async (req, res) => {
+            try {
+                const { name, email, password } = req.body;
+                if (!name || !email || !password) {
+                    return res.status(400).json({
+                        success: false,
+                        message: "All fields are required."
+                    });
+                }
+
+                const emailLower = email.trim().toLowerCase();
+
+                const existingUser = await users.findOne({
+                    emailLower: emailLower
+                });
+
+                if (existingUser) {
+                    return res.status(409).json({
+                        success: false,
+                        message: "Email already registered."
+                    });
+                }
+
+                const newUser = {
+                    name,
+                    email: email.trim(),
+                    emailLower,
+                    password
+                };
+
+                await users.insertOne(newUser);
+
+                userEvents.emit("signup", newUser);
+
+                res.status(201).json({
+                    success: true,
+                    message: "Registration successful!"
+                });
+
+            } catch (error) {
+                if (error.code === 11000) {
+                    return res.status(409).json({
+                        success: false,
+                        message: "Email already registered."
+                    });
+                }
+
+                console.error("Signup error:", error);
+
+                res.status(500).json({
+                    success: false,
+                    message: "Server error."
+                });
+            }
+        });
+
+        // Login
+        app.post("/login", async (req, res) => {
+            try {
+                const { email, password } = req.body;
+
+                if (!email || !password) {
+                    return res.status(400).json({
+                        success: false,
+                        message: "Email and password are required."
+                    });
+                }
+
+                const user = await users.findOne({
+                    emailLower: email.trim().toLowerCase(),
+                    password: password
+                });
+
+                if (!user) {
+                    return res.status(401).json({
+                        success: false,
+                        message: "Invalid email or password."
+                    });
+                }
+
+                userEvents.emit("login", user);
+
+                res.json({
+                    success: true,
+                    message: "Login successful!",
+                    name: user.name
+                });
+
+            } catch (error) {
+                console.error("Login error:", error);
+
+                res.status(500).json({
+                    success: false,
+                    message: "Server error."
+                });
+            }
+        });
+
+        // Start Express
+        app.listen(PORT, () => {
+            console.log(
+                `Server running at http://localhost:${PORT}`
+            );
+        });
+
+    } catch (error) {
+        console.error("Server startup error:", error);
+    }
+}
+
+startServer();
